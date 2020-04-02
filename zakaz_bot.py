@@ -18,6 +18,7 @@ dn = os.path.dirname(os.path.realpath(__file__))
 # Token for telegram bot
 TOKEN = config.TOKEN
 
+
 # Default stores monitoring period:
 MONITORING_PERIOD = 2016 #week with 5 min interval
 
@@ -31,20 +32,30 @@ ASHAN_USERS_PICKLE = os.path.join(dn,"ashan_users.pkl")
 
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) 
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Write log to the file
+fileHandler = logging.FileHandler('zakaz_ua_bot.log', encoding='utf-8') #mode='w'
+#fileHandler.setLevel(logging.DEBUG)
+fileHandler.setFormatter(formatter)
+logger.addHandler(fileHandler)
+# Print log to the screen
+consoleHandler = logging.StreamHandler()
+#consoleHandler.setLevel(logging.INFO)
+consoleHandler.setFormatter(formatter)
+logger.addHandler(consoleHandler)
 
 
 # Define command handlers
 def start(update, context):
     logger.info("User {} started bot".format(update.effective_user["id"])) #update.message.chat_id
-    update.message.reply_text('Hello, {}'.format(update.message.from_user.first_name))
+    update.message.reply_text('Привіт, {}'.format(update.message.from_user.first_name))
     #custom keyborad
     custom_keyboard = [['/start', '/help'],['/monitor_store']]  #'
     reply_markup = ReplyKeyboardMarkup(keyboard=custom_keyboard, resize_keyboard=True, one_time_keyboard=True)
     context.bot.send_message(chat_id=update.effective_chat.id,
-                     text="This bot is created to monitor available slots in zakaz.ua stores delivery schedule (for now - Megamarket, Metro, Novus and Ashan).\nSelect command or type your own:",
+                     text="Цей бот створений для моніторингу доступних слотів у графіку доставки магазинів на zakaz.ua (поки що - Мегамаркет, Метро, Новус та Ашан) у Києві.\nВиберіть магазин у '/monitor_store'",
                      reply_markup=reply_markup)
     # save unique users to pickle (open existing)
     try:
@@ -60,15 +71,16 @@ def start(update, context):
 
 def help(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
-                            text="""  This bot is created to monitor available slots in zakaz.ua stores delivery schedule (for now - Megamarket, Metro, Novus and Ashan).
-  For Megamarket, Novus and Metro selected Dorogozhychi-Syrets zone (Megamarket Kosmopolit, Novus on Kilceva 12, Metro-Teremki), for Ashan -  Kyiv_borshhagivka_suburb zone (Ashan on Kilceva 4).
+                            text="""
+    Цей бот створений для моніторингу доступних слотів у графіку доставки магазинів на zakaz.ua (поки що - Мегамаркет, Метро, Новус та Ашан) у Києві.
+    Для Мегамаркет, Новус та Метро обрана зона Дорогожичі-Сирець (магазини Магамаркет Космополіт, Новус на Кільцевій 12, Метро-Теремки), для Ашан - зона Київ-Борщагівка (Ашан на Кільцевій 4).
 
 Supported commands:
-/start - Hello command
-/help - Show help
-/monitor_store - monitor available slots in store delivery schedule
+/start - Привітання
+/help - Допомога
+/monitor_store - Стежити за наявними місцями в графіку доставки магазинів
 
-Bot author: @oyeryomenko""")
+Автор боту: @oyeryomenko""")
 
 
 def text(update, context):
@@ -84,7 +96,7 @@ def select_store(update, context):
         inline_kb.append([InlineKeyboardButton(text=checkIcon+" "+s, callback_data="monitoringstore "+s), InlineKeyboardButton(text=crossIcon+" Unsubscribe "+s, callback_data="unsubscribestore "+s)])       
     #inline_kb = [[InlineKeyboardButton(s,callback_data="monitoringstore "+s)] for s in store_list]+[[InlineKeyboardButton("Unsubscribe "+s,callback_data="unsubscribestore "+s)] for s in store_list]    
     reply_markup = InlineKeyboardMarkup(inline_kb)
-    update.message.reply_text('Please choose the store:', reply_markup=reply_markup)    
+    update.message.reply_text('Оберіть магазин:', reply_markup=reply_markup)    
 #     store = "".join(context.args)
 #     update.message.reply_text("You said: " + user_says)
     
@@ -92,7 +104,7 @@ def register_monitoring_user(update, context):
     logger.info("User {} registered for {}".format(update.effective_user["id"],update.callback_query.data)) 
     query = update.callback_query
     code = query.data.split(' ')[-1]
-    context.bot.answer_callback_query(query.id, "Registering for monitoring {} store".format(code))
+    context.bot.answer_callback_query(query.id, "Ви реєструєтеся на моніторинг {}".format(code))
     #query.edit_message_text(text="Prediction for: {}".format(query.data))
     if code=='Megamarket':
         # save users to pickle (open existing)
@@ -140,14 +152,14 @@ def register_monitoring_user(update, context):
         logger.info("Ashan user dict: {}".format(registered_users)) 
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Wrong store name:{}".format(code))
-    context.bot.send_message(chat_id=update.effective_chat.id, text="🤓 You are subscribed for monitoring {} store".format(code))  
+    context.bot.send_message(chat_id=update.effective_chat.id, text="🤓 Ви підписалися на моніторинг {}. \nЯ повідомлю коли з'явиться вільне вікно доставки".format(code))  
 
     
 def unsubscribe_monitoring_user(update, context):
     logger.info("User {} unsubscribed from {}".format(update.effective_user["id"],update.callback_query.data)) 
     query = update.callback_query
     code = query.data.split(' ')[-1]
-    context.bot.answer_callback_query(query.id, "Unsubscribing from monitoring {} store".format(code))
+    context.bot.answer_callback_query(query.id, "Ви відписуєтеся від моніторингу {}".format(code))
     #query.edit_message_text(text="Prediction for: {}".format(query.data))
     if code=='Megamarket':
         # save users to pickle (open existing)
@@ -195,7 +207,7 @@ def unsubscribe_monitoring_user(update, context):
         logger.info("Ashan user dict: {}".format(registered_users)) 
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Wrong store name:{}".format(code))
-    context.bot.send_message(chat_id=update.effective_chat.id, text="You are unsubscribed from monitoring {} store".format(code))  
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Ви відписалися від моніторингу {} магазин".format(code))  
 
     
     
@@ -216,8 +228,8 @@ def set_monitoring(update, context):
 
     
 def unknown(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="What is "+update.message.text+"? 🤔")
-    context.bot.send_message(chat_id=update.effective_chat.id, text="I didn't understand that command.")
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Що таке "+update.message.text+"? 🤔")
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Я не розумію цієї команди.")
 
 #
 def error(update, context):
@@ -286,9 +298,8 @@ def get_delivery_plan_metro():
             logging.error(e)
             return False
     else:
-        logger.info("Error in response from Megamarket: {}".format(response.status_code)) 
+        logger.info("Error in response from Metro: {}".format(response.status_code)) 
         return False
-    
     
 def get_delivery_plan_novus():
     #add random to get request
@@ -297,7 +308,7 @@ def get_delivery_plan_novus():
     url = "https://stores-api.zakaz.ua/stores/48201029/delivery_schedule/plan/?coords=50.468081,30.430879&some_value={}".format(rand_number)
     #coords: 50.4679482,30.431043899999963
     headers = {"authority":"stores-api.zakaz.ua"
-               ,"path":"/stores/48267602/delivery_schedule/plan/?coords=50.4679482,30.431043899999963"
+               ,"path":"/stores/48201029/delivery_schedule/plan/?coords=50.4679482,30.431043899999963"
                ,"origin":"https://novus.zakaz.ua"
                ,"referer":"https://novus.zakaz.ua/uk/"
                ,"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36"
@@ -319,28 +330,25 @@ def get_delivery_plan_novus():
             logging.error(e)
             return False
     else:
-        logger.info("Error in response from Megamarket: {}".format(response.status_code)) 
+        logger.info("Error in response from Novus: {}".format(response.status_code)) 
         return False
     
-    
 def get_delivery_plan_ashan():
+    #add random to get request
+    rand_number = np.random.rand()
     #Get delivery schedule plan
-    url = "https://auchan.zakaz.ua/api/query.json"
-    headers = {"authority":"auchan.zakaz.ua"
-               ,"path":"/api/query.json"
-               ,"origin":"https://auchan.zakaz.ua"
-               ,"referer":"https://auchan.zakaz.ua/uk/"
+    url = "https://stores-api.zakaz.ua/stores/48246401/delivery_schedule/plan/?coords=50.4679482,30.4310439&some_value={}".format(rand_number)
+    #coords: 50.4679482,30.431043899999963
+    headers = {"authority":"stores-api.zakaz.ua"
+               ,"path":"/stores/48246401/delivery_schedule/plan/?coords=50.4679482,30.4310439"
+               ,"origin":"https://beta.auchan.zakaz.ua"
+               ,"referer":"https://beta.auchan.zakaz.ua/uk/"
                ,"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36"
-               ,"x-requested-with":"XMLHttpRequest"}
-    payload = {"meta":{},"request":[{"args":{"store_id":"48246403","zone_id":"kiev_borshhagivka_suburb_1","delivery_type":"plan"},"v":"0.1","type":"user.set_zone","id":{"store_id":"48246403","zone_id":"kiev_borshhagivka_suburb_1","delivery_type":"plan"}},{"args":{"store_ids":["48246403"]},"v":"0.1","type":"store.list","id":"store"},{"args":{"store_id":"48246403"},"v":"0.1","type":"user.info","id":"user_info"},{"args":{"store_ids":["48246403"],"only_available":False,"zone_id":"kiev_borshhagivka_suburb_1","delivery_type":"plan"},"v":"0.1","type":"timewindows.list","id":"timewindows_list"},{"args":{"store_id":"48246403","revision":3,"contract_id":None,"payment_method":None},"v":"0.1","type":"cart.state","id":"cart"}]}
-    #Syrets {"meta":{},"request":[{"args":{"store_id":"48246401","zone_id":"Parkovo-syretskyy","delivery_type":"plan"},"v":"0.1","type":"user.set_zone","id":{"store_id":"48246401","zone_id":"Parkovo-syretskyy","delivery_type":"plan"}},{"args":{"store_ids":["48246401"]},"v":"0.1","type":"store.list","id":"store"},{"args":{"store_id":"48246401"},"v":"0.1","type":"user.info","id":"user_info"},{"args":{"store_ids":["48246401"],"only_available":false,"zone_id":"Parkovo-syretskyy","delivery_type":"plan"},"v":"0.1","type":"timewindows.list","id":"timewindows_list"},{"args":{"store_id":"48246401","revision":4,"contract_id":null,"payment_method":null},"v":"0.1","type":"cart.state","id":"cart"}]}
-    #Svyatoshino - {"meta":{},"request":[{"args":{"store_id":"48246403","zone_id":"Zhytomyrska","delivery_type":"plan"},"v":"0.1","type":"user.set_zone","id":{"store_id":"48246403","zone_id":"Zhytomyrska","delivery_type":"plan"}},{"args":{"store_ids":["48246403"]},"v":"0.1","type":"store.list","id":"store"},{"args":{"store_id":"48246403"},"v":"0.1","type":"user.info","id":"user_info"},{"args":{"store_ids":["48246403"],"only_available":false,"zone_id":"Zhytomyrska","delivery_type":"plan"},"v":"0.1","type":"timewindows.list","id":"timewindows_list"},{"args":{"store_id":"48246403","revision":4,"contract_id":null,"payment_method":null},"v":"0.1","type":"cart.state","id":"cart"}]}
-    #KPI - {"meta":{},"request":[{"args":{"store_id":"48246403","zone_id":"Komarova","delivery_type":"plan"},"v":"0.1","type":"user.set_zone","id":{"store_id":"48246403","zone_id":"Komarova","delivery_type":"plan"}},{"args":{"store_ids":["48246403"]},"v":"0.1","type":"store.list","id":"store"},{"args":{"store_id":"48246403"},"v":"0.1","type":"user.info","id":"user_info"},{"args":{"store_ids":["48246403"],"only_available":false,"zone_id":"Komarova","delivery_type":"plan"},"v":"0.1","type":"timewindows.list","id":"timewindows_list"},{"args":{"store_id":"48246403","revision":5,"contract_id":null,"payment_method":null},"v":"0.1","type":"cart.state","id":"cart"}]}
-    #test-office2019  - {"meta":{},"request":[{"args":{"store_id":"48246401","zone_id":"test_offise_2019","delivery_type":"plan"},"v":"0.1","type":"user.set_zone","id":{"store_id":"48246401","zone_id":"test_offise_2019","delivery_type":"plan"}},{"args":{"store_ids":["48246401"]},"v":"0.1","type":"store.list","id":"store"},{"args":{"store_id":"48246401"},"v":"0.1","type":"user.info","id":"user_info"},{"args":{"store_ids":["48246401"],"only_available":false,"zone_id":"test_offise_2019","delivery_type":"plan"},"v":"0.1","type":"timewindows.list","id":"timewindows_list"},{"args":{"store_id":"48246401","revision":5,"contract_id":null,"payment_method":null},"v":"0.1","type":"cart.state","id":"cart"}]}
+               ,"x-chain":"auchan"}
     try:
-        response = requests.post(url, headers=headers, json=payload) #, timeout=5
+        response = requests.get(url, headers=headers) #, timeout=5
     except requests.exceptions.ConnectionError:
-        print("Ashan Connection refused")
+        print("Novus Connection refused")
         return False    
     # print the response status code
     print(response.status_code)
@@ -355,8 +363,7 @@ def get_delivery_plan_ashan():
             return False
     else:
         logger.info("Error in response from Ashan: {}".format(response.status_code)) 
-        return False
-
+        return False    
 
 def check_status_stores(json):
     if json==False:
@@ -372,18 +379,6 @@ def check_status_stores(json):
                     return(status, date, time)
         return(False, False, False)
     
-def check_status_ashan(json):    
-    if json==False:
-        return(False, False, False)
-    else:
-        for day in json['responses'][3]['data']['items'][0]['windows']:
-            date = day['date']
-            for slot in day['windows']:
-                if slot['is_available']:
-                    status = True
-                    time = slot['range_time']
-                    return(status, date, time)
-        return(False, False, False)
 ############
 
 def main():
@@ -436,7 +431,7 @@ def main():
             if init_mm_status != status[2]:
                 for usr in megamarket_registered_users.keys():
                     try:
-                        updater.bot.send_message(chat_id=usr, text="😎 Free slot in Megamarket delivery schedule. Nearest on {}, {} \nhttps://megamarket.zakaz.ua/uk/".format(status[1],status[2]), disable_web_page_preview=True)
+                        updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Мегамаркет. Найближчий {}, {} \nhttps://megamarket.zakaz.ua/uk/ \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
                     except Unauthorized:
                         logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr])) 
                     except TimedOut:
@@ -444,7 +439,7 @@ def main():
         elif init_mm_status != False:
             for usr in megamarket_registered_users.keys():
                 try:
-                    updater.bot.send_message(chat_id=usr, text="😕 No more free slots in Megamarket delivery schedule. I will notify when appear")
+                    updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Мегамаркет. Повідомлю коли з’явиться.")
                 except Unauthorized:
                         logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr])) 
                 except TimedOut:
@@ -464,7 +459,7 @@ def main():
             if init_metro_status != status[2]:
                 for usr in metro_registered_users.keys():
                     try:
-                        updater.bot.send_message(chat_id=usr, text="😎 Free slot in Metro delivery schedule. Nearest on {}, {} \nhttps://beta.metro.zakaz.ua/uk \nI'll let you know if anything changes".format(status[1],status[2]), disable_web_page_preview=True)
+                        updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Метро. Найближчий {}, {} \nhttps://beta.metro.zakaz.ua/uk \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
                     except Unauthorized:
                         logger.info("User blocked bot: {},{}".format(usr, metro_registered_users[usr])) 
                     except TimedOut:
@@ -472,7 +467,7 @@ def main():
         elif init_metro_status != False:
             for usr in metro_registered_users.keys():
                 try:
-                    updater.bot.send_message(chat_id=usr, text="😕 No more free slots in Metro delivery schedule. I will notify when appear")
+                    updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Метро. Повідомлю коли з’явиться.")
                 except Unauthorized:
                         logger.info("User blocked bot: {},{}".format(usr, metro_registered_users[usr])) 
                 except TimedOut:
@@ -492,7 +487,7 @@ def main():
             if init_novus_status != status[2]:
                 for usr in novus_registered_users.keys():
                     try:
-                        updater.bot.send_message(chat_id=usr, text="😎 Free slot in Novus delivery schedule. Nearest on {}, {} \nhttps://novus.zakaz.ua/uk/ \nI'll let you know if anything changes".format(status[1],status[2]), disable_web_page_preview=True)
+                        updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Новус. Найближчий  {}, {} \nhttps://novus.zakaz.ua/uk/ \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
                     except Unauthorized:
                         logger.info("User blocked bot: {},{}".format(usr, novus_registered_users[usr])) 
                     except TimedOut:
@@ -500,7 +495,7 @@ def main():
         elif init_novus_status != False:
             for usr in novus_registered_users.keys():
                 try:
-                    updater.bot.send_message(chat_id=usr, text="😕 No more free slots in Novus delivery schedule. I will notify when appear")
+                    updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Новус. Повідомлю коли з’явиться.")
                 except Unauthorized:
                         logger.info("User blocked bot: {},{}".format(usr, novus_registered_users[usr])) 
                 except TimedOut:
@@ -514,12 +509,12 @@ def main():
         except:
             ashan_registered_users = {}
         del_plan = get_delivery_plan_ashan()
-        status = check_status_ashan(del_plan)
+        status = check_status_stores(del_plan)
         if status[0]:
             if init_a_status != status[2]:
                 for usr in ashan_registered_users.keys():
                     try:
-                        updater.bot.send_message(chat_id=usr, text="😎 Free slot in Ashan delivery schedule. Nearest on {}, {} \nhttps://auchan.zakaz.ua/uk/ \nI'll let you know if anything changes".format(status[1],status[2]), disable_web_page_preview=True)
+                        updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Ашан. Найближчий {}, {} \nhttps://beta.auchan.zakaz.ua/uk/ \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
                     except Unauthorized:
                         logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr])) 
                     except TimedOut:
@@ -527,7 +522,7 @@ def main():
         elif init_a_status != False:
             for usr in ashan_registered_users.keys():
                 try:
-                    updater.bot.send_message(chat_id=usr, text="😕 No more free slots in Ashan delivery schedule. I will notify when appear")
+                    updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Ашан. Повідомлю коли з’явиться.")
                 except Unauthorized:
                         logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr]))             
                 except TimedOut:
