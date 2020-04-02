@@ -11,6 +11,8 @@ import numpy as np
 import requests
 import time
 import json
+import threading
+from threading import Thread
 import config
 
 dn = os.path.dirname(os.path.realpath(__file__))
@@ -47,6 +49,140 @@ consoleHandler.setFormatter(formatter)
 logger.addHandler(consoleHandler)
 
 
+#######################################################
+# Class for monitoring thread
+
+class Monitoring(Thread):
+    def __init__(self, updater):
+        super(Monitoring, self).__init__()
+        self.running = True
+        self.updater = updater
+        
+    def run(self):   
+        init_mm_status = False
+        init_metro_status = False
+        init_novus_status = False
+        init_a_status = False     
+        while self.running:
+            # Zakaz.ua store monitoring
+            #Megamarket    
+            try:
+                with open(MM_USERS_PICKLE, 'rb') as f:
+                        megamarket_registered_users = pickle.load(f)
+            except:
+                megamarket_registered_users = {}
+            if len(megamarket_registered_users)>0:
+                del_plan = get_delivery_plan_megamarket()
+                status = check_status_stores(del_plan)
+                if status[0]:
+                    if init_mm_status != status[2]:
+                        for usr in megamarket_registered_users.keys():
+                            try:
+                                self.updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Мегамаркет. Найближчий {}, {} \nhttps://megamarket.zakaz.ua/uk/ \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
+                            except Unauthorized:
+                                logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr])) 
+                            except TimedOut:
+                                logger.info("Message sending timed out..")                         
+                elif init_mm_status != False:
+                    for usr in megamarket_registered_users.keys():
+                        try:
+                            self.updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Мегамаркет. Повідомлю коли з’явиться.")
+                        except Unauthorized:
+                                logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr])) 
+                        except TimedOut:
+                                logger.info("Message sending timed out..") 
+                init_mm_status = status[2]
+
+            #Metro    
+            try:
+                with open(METRO_USERS_PICKLE, 'rb') as f:
+                        metro_registered_users = pickle.load(f)
+            except:
+                metro_registered_users = {}
+            if len(metro_registered_users)>0:
+                del_plan = get_delivery_plan_metro()
+                status = check_status_stores(del_plan)
+                if status[0]:
+                    if init_metro_status != status[2]:
+                        for usr in metro_registered_users.keys():
+                            try:
+                                self.updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Метро. Найближчий {}, {} \nhttps://beta.metro.zakaz.ua/uk \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
+                            except Unauthorized:
+                                logger.info("User blocked bot: {},{}".format(usr, metro_registered_users[usr])) 
+                            except TimedOut:
+                                logger.info("Message sending timed out..")                         
+                elif init_metro_status != False:
+                    for usr in metro_registered_users.keys():
+                        try:
+                            self.updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Метро. Повідомлю коли з’явиться.")
+                        except Unauthorized:
+                                logger.info("User blocked bot: {},{}".format(usr, metro_registered_users[usr])) 
+                        except TimedOut:
+                                logger.info("Message sending timed out..") 
+                init_metro_status = status[2]
+
+            #Novus  
+            try:
+                with open(NOVUS_USERS_PICKLE, 'rb') as f:
+                        novus_registered_users = pickle.load(f)
+            except:
+                novus_registered_users = {}
+            if len(novus_registered_users)>0:
+                del_plan = get_delivery_plan_novus()
+                status = check_status_stores(del_plan)
+                if status[0]:
+                    if init_novus_status != status[2]:
+                        for usr in novus_registered_users.keys():
+                            try:
+                                self.updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Новус. Найближчий  {}, {} \nhttps://novus.zakaz.ua/uk/ \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
+                            except Unauthorized:
+                                logger.info("User blocked bot: {},{}".format(usr, novus_registered_users[usr])) 
+                            except TimedOut:
+                                logger.info("Message sending timed out..")                         
+                elif init_novus_status != False:
+                    for usr in novus_registered_users.keys():
+                        try:
+                            self.updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Новус. Повідомлю коли з’явиться.")
+                        except Unauthorized:
+                                logger.info("User blocked bot: {},{}".format(usr, novus_registered_users[usr])) 
+                        except TimedOut:
+                                logger.info("Message sending timed out..") 
+                init_novus_status = status[2]        
+
+            #Ashan
+            try:
+                with open(ASHAN_USERS_PICKLE, 'rb') as f:
+                            ashan_registered_users = pickle.load(f)
+            except:
+                ashan_registered_users = {}
+            if len(ashan_registered_users)>0:            
+                del_plan = get_delivery_plan_ashan()
+                status = check_status_stores(del_plan)
+                if status[0]:
+                    if init_a_status != status[2]:
+                        for usr in ashan_registered_users.keys():
+                            try:
+                                self.updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Ашан. Найближчий {}, {} \nhttps://beta.auchan.zakaz.ua/uk/ \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
+                            except Unauthorized:
+                                logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr])) 
+                            except TimedOut:
+                                logger.info("Message sending timed out..") 
+                elif init_a_status != False:
+                    for usr in ashan_registered_users.keys():
+                        try:
+                            self.updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Ашан. Повідомлю коли з’явиться.")
+                        except Unauthorized:
+                                logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr]))             
+                        except TimedOut:
+                            logger.info("Message sending timed out..") 
+                init_a_status = status[2]
+                
+            time.sleep(300+np.random.randint(-5,5))
+                          
+##############################################################     
+    
+    
+    
 # Define command handlers
 def start(update, context):
     logger.info("User {} started bot".format(update.effective_user["id"])) #update.message.chat_id
@@ -67,8 +203,23 @@ def start(update, context):
     with open(USERS_PICKLE, 'wb') as f:
         pickle.dump(registered_users, f)
     logger.info("user dict: {}".format(registered_users))
+    #return monitoring
+
+    
+# Stop monitoring Thread        
+def stop_monitoring(update, context): #t=monitoring
+    global monitoring  
+    update.message.reply_text('OK, end monitoring...')
+    monitoring.running = False # stop the thread
+
+# Get some data from monitoring Thread
+# def get(update, context, t=monitoring):
+#     update.message.reply_text('OK, the current value is {}'.format(t.data))
     
 
+    
+    
+    
 def help(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
                             text="""
@@ -91,7 +242,7 @@ def select_store(update, context):
     store_list = ['Megamarket', 'Ashan', 'Novus', 'Metro']       
     inline_kb=[]
     crossIcon = u"\u274C"
-    checkIcon = u"\u2705" #u2714
+    checkIcon = u"\u2705"
     for s in store_list:
         inline_kb.append([InlineKeyboardButton(text=checkIcon+" "+s, callback_data="monitoringstore "+s), InlineKeyboardButton(text=crossIcon+" Unsubscribe "+s, callback_data="unsubscribestore "+s)])       
     #inline_kb = [[InlineKeyboardButton(s,callback_data="monitoringstore "+s)] for s in store_list]+[[InlineKeyboardButton("Unsubscribe "+s,callback_data="unsubscribestore "+s)] for s in store_list]    
@@ -210,23 +361,6 @@ def unsubscribe_monitoring_user(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Ви відписалися від моніторингу {} магазин".format(code))  
 
     
-    
-def set_monitoring(update, context):
-    global MONITORING_PERIOD
-    update.message.reply_text('Setting monitoring time for zakaz ua stores..')
-    timer = ''.join(context.args)
-    logger.info("User {} requested to start monioring for {} hrs".format(update.effective_chat.id, timer))    
-    if update.effective_chat.id==109458488:
-        try: 
-            MONITORING_PERIOD = int(timer) * 12 # convert to 5-min intervals
-        except ValueError:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='You tries to set {} hrs. Should be numerical number of hours'.format(timer))       
-        context.bot.send_message(chat_id=update.effective_chat.id, text='You have set monitoring time to {} hrs.'.format(timer))
-        logger.info("User {} have set monioring for {} hrs".format(update.effective_chat.id, timer))
-    else: 
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Hello, {}. You are not aythorised to set monitoring time'.format(update.effective_user["first_name"]))
-
-    
 def unknown(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Що таке "+update.message.text+"? 🤔")
     context.bot.send_message(chat_id=update.effective_chat.id, text="Я не розумію цієї команди.")
@@ -252,7 +386,7 @@ def get_delivery_plan_megamarket():
     try:
         response = requests.get(url, headers=headers) #, timeout=5
     except requests.exceptions.ConnectionError:
-        print("Megamarket Connection refused")
+        logger.info("Megamarket Connection refused")
         return False    
     # print the response status code
     print(response.status_code)
@@ -260,7 +394,7 @@ def get_delivery_plan_megamarket():
         try:
             return response.json()
         except json.decoder.JSONDecodeError:
-            print("Response Not JSON: {}".format(response.text))
+            logger.info("Response Not JSON: {}".format(response.text))
             return False
         except Exception as e:
             logging.error(e)
@@ -284,7 +418,7 @@ def get_delivery_plan_metro():
     try:
         response = requests.get(url, headers=headers) #, timeout=5
     except requests.exceptions.ConnectionError:
-        print("Metro Connection refused")
+        logger.info("Metro Connection refused")
         return False    
     # print the response status code
     print(response.status_code)
@@ -292,7 +426,7 @@ def get_delivery_plan_metro():
         try:
             return response.json()
         except json.decoder.JSONDecodeError:
-            print("Response Not JSON: {}".format(response.text))
+            logger.info("Response Not JSON: {}".format(response.text))
             return False
         except Exception as e:
             logging.error(e)
@@ -316,7 +450,7 @@ def get_delivery_plan_novus():
     try:
         response = requests.get(url, headers=headers) #, timeout=5
     except requests.exceptions.ConnectionError:
-        print("Novus Connection refused")
+        logger.info("Novus Connection refused")
         return False    
     # print the response status code
     print(response.status_code)
@@ -324,7 +458,7 @@ def get_delivery_plan_novus():
         try:
             return response.json()
         except json.decoder.JSONDecodeError:
-            print("Response Not JSON: {}".format(response.text))
+            logger.info("Response Not JSON: {}".format(response.text))
             return False
         except Exception as e:
             logging.error(e)
@@ -348,7 +482,7 @@ def get_delivery_plan_ashan():
     try:
         response = requests.get(url, headers=headers) #, timeout=5
     except requests.exceptions.ConnectionError:
-        print("Novus Connection refused")
+        logger.info("Novus Connection refused")
         return False    
     # print the response status code
     print(response.status_code)
@@ -356,7 +490,7 @@ def get_delivery_plan_ashan():
         try:
             return response.json()
         except json.decoder.JSONDecodeError:
-            print("Response Not JSON: {}".format(response.text))
+            logger.info("Response Not JSON: {}".format(response.text))
             return False
         except Exception as e:
             logging.error(e)
@@ -395,11 +529,10 @@ def main():
     updater.dispatcher.add_handler(start_handler)   # register start handler
     updater.dispatcher.add_handler(CommandHandler('help', help))
     updater.dispatcher.add_handler(CommandHandler('monitor_store', select_store))
-    updater.dispatcher.add_handler(CommandHandler('set_monitoring', set_monitoring))
     updater.dispatcher.add_handler(CallbackQueryHandler(register_monitoring_user, pattern=r'^monitoringstore ')) 
     updater.dispatcher.add_handler(CallbackQueryHandler(unsubscribe_monitoring_user, pattern=r'^unsubscribestore ')) 
+    updater.dispatcher.add_handler(CommandHandler('stop_monitoring', stop_monitoring))
     updater.dispatcher.add_handler(MessageHandler(Filters.text, text))
-    #
     updater.dispatcher.add_handler(MessageHandler(Filters.command, unknown))
     #error logging handler
     updater.dispatcher.add_error_handler(error)
@@ -407,132 +540,14 @@ def main():
 
     # Run bot
     updater.start_polling()
-
-    # Zakaz.ua store monitoring
-    init_mm_status = False
-    init_metro_status = False
-    init_novus_status = False
-    init_a_status = False
-    i = 0
-    while i < MONITORING_PERIOD:
-        logger.info('Monitoring time left: {}hrs'.format(int((MONITORING_PERIOD-i)/12)))
-        if MONITORING_PERIOD-i < 13:
-            updater.bot.send_message(chat_id='109458488', text="Monitoring will be stopped in 1 hour. To continue: `set_monitoring 24` i={}".format(i))
-        #Megamarket    
-        try:
-            with open(MM_USERS_PICKLE, 'rb') as f:
-                    megamarket_registered_users = pickle.load(f)
-        except:
-            megamarket_registered_users = {}
-        
-        del_plan = get_delivery_plan_megamarket()
-        status = check_status_stores(del_plan)
-        if status[0]:
-            if init_mm_status != status[2]:
-                for usr in megamarket_registered_users.keys():
-                    try:
-                        updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Мегамаркет. Найближчий {}, {} \nhttps://megamarket.zakaz.ua/uk/ \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
-                    except Unauthorized:
-                        logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr])) 
-                    except TimedOut:
-                        logger.info("Message sending timed out..")                         
-        elif init_mm_status != False:
-            for usr in megamarket_registered_users.keys():
-                try:
-                    updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Мегамаркет. Повідомлю коли з’явиться.")
-                except Unauthorized:
-                        logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr])) 
-                except TimedOut:
-                        logger.info("Message sending timed out..") 
-        init_mm_status = status[2]
-        
-        #Metro    
-        try:
-            with open(METRO_USERS_PICKLE, 'rb') as f:
-                    metro_registered_users = pickle.load(f)
-        except:
-            metro_registered_users = {}
-        
-        del_plan = get_delivery_plan_metro()
-        status = check_status_stores(del_plan)
-        if status[0]:
-            if init_metro_status != status[2]:
-                for usr in metro_registered_users.keys():
-                    try:
-                        updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Метро. Найближчий {}, {} \nhttps://beta.metro.zakaz.ua/uk \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
-                    except Unauthorized:
-                        logger.info("User blocked bot: {},{}".format(usr, metro_registered_users[usr])) 
-                    except TimedOut:
-                        logger.info("Message sending timed out..")                         
-        elif init_metro_status != False:
-            for usr in metro_registered_users.keys():
-                try:
-                    updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Метро. Повідомлю коли з’явиться.")
-                except Unauthorized:
-                        logger.info("User blocked bot: {},{}".format(usr, metro_registered_users[usr])) 
-                except TimedOut:
-                        logger.info("Message sending timed out..") 
-        init_metro_status = status[2]
-        
-        #Novus  
-        try:
-            with open(NOVUS_USERS_PICKLE, 'rb') as f:
-                    novus_registered_users = pickle.load(f)
-        except:
-            novus_registered_users = {}
-        
-        del_plan = get_delivery_plan_novus()
-        status = check_status_stores(del_plan)
-        if status[0]:
-            if init_novus_status != status[2]:
-                for usr in novus_registered_users.keys():
-                    try:
-                        updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Новус. Найближчий  {}, {} \nhttps://novus.zakaz.ua/uk/ \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
-                    except Unauthorized:
-                        logger.info("User blocked bot: {},{}".format(usr, novus_registered_users[usr])) 
-                    except TimedOut:
-                        logger.info("Message sending timed out..")                         
-        elif init_novus_status != False:
-            for usr in novus_registered_users.keys():
-                try:
-                    updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Новус. Повідомлю коли з’явиться.")
-                except Unauthorized:
-                        logger.info("User blocked bot: {},{}".format(usr, novus_registered_users[usr])) 
-                except TimedOut:
-                        logger.info("Message sending timed out..") 
-        init_novus_status = status[2]        
-        
-        #Ashan
-        try:
-            with open(ASHAN_USERS_PICKLE, 'rb') as f:
-                        ashan_registered_users = pickle.load(f)
-        except:
-            ashan_registered_users = {}
-        del_plan = get_delivery_plan_ashan()
-        status = check_status_stores(del_plan)
-        if status[0]:
-            if init_a_status != status[2]:
-                for usr in ashan_registered_users.keys():
-                    try:
-                        updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки Ашан. Найближчий {}, {} \nhttps://beta.auchan.zakaz.ua/uk/ \nЯ повідомлю про зміни.".format(status[1],status[2]), disable_web_page_preview=True)
-                    except Unauthorized:
-                        logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr])) 
-                    except TimedOut:
-                        logger.info("Message sending timed out..") 
-        elif init_a_status != False:
-            for usr in ashan_registered_users.keys():
-                try:
-                    updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки Ашан. Повідомлю коли з’явиться.")
-                except Unauthorized:
-                        logger.info("User blocked bot: {},{}".format(usr, megamarket_registered_users[usr]))             
-                except TimedOut:
-                    logger.info("Message sending timed out..") 
-        init_a_status = status[2]
-            #time.sleep(120+np.random.randint(-5,5))
-        #else:
-            #print('Checking..')
-        time.sleep(300+np.random.randint(-5,5))
-        i+=1
+    
+    # Start monitoring in thread
+    global monitoring  
+    monitoring = Monitoring(updater) # create parallel thread
+    monitoring.daemon = True # stop the thread if the main thread quits
+    monitoring.start()
+    #print(threading.active_count())
+    
         
     # Stop the Bot when Ctrl+C received
     updater.idle()
