@@ -384,7 +384,17 @@ def register_monitoring_user(update, context):
             pickle.dump(stores, f)
         logger.info("Furshet {} user dict: {}".format(store_code, stores[store_code])) 
     store_description = CHAIN_STORES_DICT[chain_code][store_code]
-    context.bot.send_message(chat_id=update.effective_chat.id, text="🤓 Ви підписалися на моніторинг {}. \nЯ повідомлю коли з'явиться вільне вікно доставки".format(store_description))                       
+    context.bot.send_message(chat_id=update.effective_chat.id, text="🤓 Ви підписалися на моніторинг {}.".format(store_description))
+    del_plan = get_delivery_plan(chain_code, store_code)
+    status = check_status_stores(del_plan)
+    if status[0]:
+        try:
+            context.bot.send_message(chat_id=update.effective_chat.id, text="😊 Пощастило! Зараз є вільний слот в графіку доставки {} - на {}, {} \n{} \nЯ повідомлю про зміни.".format(store_description,status[1],status[2],CHAIN_LINK_DICT[chain_code]), disable_web_page_preview=True)
+        except:
+            pass
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Нажаль наразі немає вільних слотів в графіку доставки {}. \nЯ повідомлю коли з'явиться вільне вікно доставки.".format(store_description))
+
                      
                      
 def unsubscribe_monitoring_user(update, context):
