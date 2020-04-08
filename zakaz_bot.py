@@ -5,7 +5,7 @@ from telegram.error import NetworkError, Unauthorized, TimedOut
 import logging
 import os
 #from time import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 import pickle
 import numpy as np
 import requests
@@ -109,8 +109,8 @@ class Monitoring(Thread):
                     self.init_status[store_id]
                 except:
                     self.init_status[store_id] = False   
-                logger.info('Checking {}, {}, {}, monitoring users: {}'.format(chain_id,store_id,store_description,len(store_users_dict)))
                 if len(store_users_dict)>0:
+                    logger.info('Checking {}, {}, {}, monitoring users: {}'.format(chain_id,store_id,store_description,len(store_users_dict)))
                     del_plan = get_delivery_plan(chain_id, store_id)
                     status = check_status_stores(del_plan)
                     if status[0]:
@@ -120,24 +120,22 @@ class Monitoring(Thread):
                                 try:
                                     self.updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки {}. Найближчий {}, {} \n{} \nЯ повідомлю про зміни.".format(store_description,status[1],status[2],store_link), disable_web_page_preview=True)
                                 except Unauthorized:
-                                    logger.info("User blocked bot: {},{}".format(usr, store_users_dict[usr])) 
-                                    
-                                    # delete users from subscription list
-                                    try:
-                                        with open(CHAIN_USERS_PICKLE_DICT[chain_id], 'rb') as f:
-                                                stores = pickle.load(f)
-                                    except:
-                                        stores = {}
-                                    try:
-                                        registered_users = stores[store_id]
-                                        registered_users.pop(usr, None)
-                                        stores.update({store_id:registered_users})
-                                    except:
-                                        stores.update({store_id:{}})
-                                    with open(CHAIN_USERS_PICKLE_DICT[chain_id], 'wb') as f:
-                                        pickle.dump(stores, f)
-                                    logger.info("{} {} user dict: {}".format(chain_id, store_id, stores[store_id])) 
-                                    
+                                    logger.info("User {}, {} blocked bot, removing from subscription list".format(usr, store_users_dict[usr])) 
+#                                     # delete users from subscription list if he blocked bot
+#                                     try:
+#                                         with open(CHAIN_USERS_PICKLE_DICT[chain_id], 'rb') as f:
+#                                                 stores = pickle.load(f)
+#                                     except:
+#                                         stores = {}
+#                                     try:
+#                                         registered_users = stores[store_id]
+#                                         registered_users.pop(usr, None)
+#                                         stores.update({store_id:registered_users})
+#                                     except:
+#                                         stores.update({store_id:{}})
+#                                     with open(CHAIN_USERS_PICKLE_DICT[chain_id], 'wb') as f:
+#                                         pickle.dump(stores, f)
+#                                     logger.info("{} {} user dict: {}".format(chain_id, store_id, stores[store_id])) 
                                 except TimedOut:
                                     logger.info("Message sending timed out..")                         
                     elif self.init_status[store_id] != False:
@@ -160,7 +158,12 @@ class Monitoring(Thread):
                 except:
                     chain_stores = {}
                 self.store_check_free_slot_(chain_id, chain_stores) 
-            time.sleep(240+np.random.randint(-5,5))
+            # Make less frequent checks at night
+            current_time = datetime.now().strftime("%H:%M")
+            if (int(current_time[:2])>8)&(int(current_time[:2])<23):
+                time.sleep(300+np.random.randint(-5,5))
+            else:
+                time.sleep(1800+np.random.randint(-5,5))
 
 ##############################################################     
     
@@ -169,11 +172,13 @@ def start(update, context):
     logger.info("User {} started bot".format(update.effective_user["id"])) #update.message.chat_id
     update.message.reply_text('Привіт, {}'.format(update.message.from_user.first_name))
     #custom keyborad
-    custom_keyboard = [['/start', '/select_chain', '/status'],['/help', '/donate']]  #'
+    custom_keyboard = [['/start', '/select_chain'],['/status', '/help']]  #/donate
     reply_markup = ReplyKeyboardMarkup(keyboard=custom_keyboard, resize_keyboard=True, one_time_keyboard=True)
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                     text="Цей бот створений для моніторингу доступних слотів у графіку доставки магазинів на zakaz.ua (мережі Мегамаркет, Метро, Новус, Ашан та Фуршет).\nВиберіть магазин у '/select_chain'",
-                     reply_markup=reply_markup)
+    context.bot.send_message(chat_id=update.effective_chat.id
+                             , text="""Цей бот створений для моніторингу доступних слотів у графіку доставки магазинів на zakaz.ua (мережі Мегамаркет, Метро, Новус, Ашан та Фуршет). 
+    Нажаль, через різні конфігурації зон доставки серед магазинів та їх не відповідність до адміністративного поділу, моніторинг встановлюється по найближчим магазинами а не за районами Києва.
+    Оберіть мережу та магазини для відслідковування у /select_chain"""
+                             , reply_markup=reply_markup)
     # save unique users to pickle (open existing)
     try:
         with open(USERS_PICKLE, 'rb') as f:
@@ -190,6 +195,7 @@ def help(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
                             text="""
     Цей бот створений для моніторингу доступних слотів у графіку доставки магазинів на zakaz.ua (мережі Мегамаркет, Метро, Новус, Ашан та Фуршет).
+Нажаль, через різні конфігурації зон доставки серед магазинів та їх не відповідність до адміністративного поділу, моніторинг встановлюється по найближчим магазинами а не за районами.
 Supported commands:
 /start - Привітання
 /select_chain - Стежити за наявними місцями в графіку доставки магазинів
@@ -221,7 +227,7 @@ def select_store(update, context):
                      [InlineKeyboardButton(checkIcon+" МегаМаркет Космополіт", callback_data='monitor_store Megamarket 48267602'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Megamarket 48267602')]]
         reply_markup = InlineKeyboardMarkup(inline_kb)
-        context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup)   
+        #context.bot.send_message(chat_id=query.message.chat_id, text='Встановіть моніторинг вільних слотів доставки по найближчим магазинам, що найвирогідніше обслуговують ваш район:', reply_markup=reply_markup)   
         #update.message.reply_text('Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup)   
     
     elif code=='Metro':    
@@ -246,7 +252,7 @@ def select_store(update, context):
                      [InlineKeyboardButton(checkIcon+" METRO Житомир", callback_data='monitor_store Metro 48215639'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro 48215639')]]
         reply_markup = InlineKeyboardMarkup(inline_kb)
-        context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
+        #context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
 
     elif code=='Novus':    
         inline_kb = [[InlineKeyboardButton(checkIcon+" NOVUS SkyMall", callback_data='monitor_store Novus 482010105'),
@@ -256,7 +262,7 @@ def select_store(update, context):
                      [InlineKeyboardButton(checkIcon+" NOVUS Здолбунівська 7Г", callback_data='monitor_store Novus 48201070'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus 48201070')]]
         reply_markup = InlineKeyboardMarkup(inline_kb)
-        context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
+        #context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
         
     elif code=='Ashan':    
         inline_kb = [[InlineKeyboardButton(checkIcon+" Ашан на Кільцева 4", callback_data='monitor_store Ashan 48246403'), 
@@ -272,7 +278,7 @@ def select_store(update, context):
                      [InlineKeyboardButton(checkIcon+" Ашан Дніпро", callback_data='monitor_store Ashan 48246429'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan 48246429')]]
         reply_markup = InlineKeyboardMarkup(inline_kb)
-        context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
+        #context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
                     
     elif code=='Furshet':
         inline_kb = [[InlineKeyboardButton(checkIcon+" Фуршет Нивки", callback_data='monitor_store Furshet 48215514'), 
@@ -284,7 +290,7 @@ def select_store(update, context):
                      [InlineKeyboardButton(checkIcon+" Фуршет Атмосфера", callback_data='monitor_store Furshet 48215556'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Furshet 48215556')]]
         reply_markup = InlineKeyboardMarkup(inline_kb)
-        context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
+    context.bot.send_message(chat_id=query.message.chat_id, text='Встановіть моніторинг вільних слотів доставки zakaz.ua по найближчим магазинам, що найвирогідніше обслуговують ваш район:', reply_markup=reply_markup, disable_web_page_preview=True) 
 
 
 def register_monitoring_user(update, context):
