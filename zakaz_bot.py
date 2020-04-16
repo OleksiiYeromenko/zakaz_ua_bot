@@ -105,22 +105,19 @@ SUBURB_STORES = {
          'Vyshneve':'48267602', 
          'Irpin':'48267602', 
          'Brovary':'48267601', 
-         'Boryspil':'48267601', 
-         'Obukhiv':''},
+         'Boryspil':'48267601'},
     'Metro':{
         'Vyshhorod': '48215633', 
          'Vyshneve':'48215611', 
          'Irpin':'48215633', 
          'Brovary':'48215610', 
-         'Boryspil':'48215610', 
-         'Obukhiv':''},
+         'Boryspil':'48215610'},
     'Novus':{
         'Vyshhorod': '482010105', 
          'Vyshneve':'48201029', 
          'Irpin':'482010105', 
          'Brovary':'48201070', 
-         'Boryspil':'48201070', 
-         'Obukhiv':''},
+         'Boryspil':'48201070'},
     'Ashan':{
         'Vyshhorod': '48246401', 
          'Vyshneve':'48246403', 
@@ -169,9 +166,9 @@ class Monitoring(Thread):
                 store_description = CHAIN_STORES_DICT[chain_id][store_id]
                 store_link = CHAIN_LINK_DICT[chain_id]
                 try:
-                    self.init_status[store_id]
+                    self.init_status[str(chain_id)+"_"+str(store_id)]
                 except:
-                    self.init_status[store_id] = False   
+                    self.init_status[str(chain_id)+"_"+str(store_id)] = False   
                 if len(store_users_dict)>0:
                     logger.info('Checking {}, {}, {}, monitoring users: {}'.format(chain_id,store_id,store_description,len(store_users_dict)))
                     #check if it's suburb - use another function
@@ -182,7 +179,7 @@ class Monitoring(Thread):
                     status = check_status_stores(del_plan)
                     if status[0]:
                         logger.info('Free slot in {}, {}'.format(chain_id,store_id))               
-                        if self.init_status[store_id] != status[2]:
+                        if self.init_status[str(chain_id)+"_"+str(store_id)] != status[2]:
                             for usr in store_users_dict.keys():
                                 try:
                                     self.updater.bot.send_message(chat_id=usr, text="😎 Є вільний слот в графіку доставки {}. Найближчий {}, {} \n{} \nЯ повідомлю про зміни.".format(store_description,status[1],status[2],store_link), disable_web_page_preview=True)
@@ -205,7 +202,7 @@ class Monitoring(Thread):
                                     logger.info("{} {} user dict: {}".format(chain_id, store_id, stores[store_id])) 
                                 except TimedOut:
                                     logger.info("Message sending timed out..")                         
-                    elif self.init_status[store_id] != False:
+                    elif self.init_status[str(chain_id)+"_"+str(store_id)] != False:
                         for usr in store_users_dict.keys():
                             try:
                                 self.updater.bot.send_message(chat_id=usr, text="😕 Більше немає вільних слотів в графіку доставки {}. Повідомлю коли з’явиться.".format(store_description))
@@ -213,7 +210,7 @@ class Monitoring(Thread):
                                     logger.info("User blocked bot: {},{}".format(usr, store_users_dict[usr])) 
                             except TimedOut:
                                     logger.info("Message sending timed out..") 
-                    self.init_status[store_id] = status[2] 
+                    self.init_status[str(chain_id)+"_"+str(store_id)] = status[2] 
                     
     def run(self):
         while self.running:
@@ -243,7 +240,7 @@ def start(update, context):
     reply_markup = ReplyKeyboardMarkup(keyboard=custom_keyboard, resize_keyboard=True, one_time_keyboard=True)
     context.bot.send_message(chat_id=update.effective_chat.id
                              , text="""Цей бот створений для моніторингу доступних слотів у графіку доставки магазинів на zakaz.ua (мережі Мегамаркет, Метро, Новус, Ашан та Фуршет). 
-    Нажаль, через різні конфігурації зон доставки серед магазинів та їх не відповідність до адміністративного поділу, моніторинг встановлюється по найближчим магазинами а не за районами Києва.
+    Нажаль, через різні конфігурації зон доставки серед магазинів та їх не відповідність до адміністративного поділу, моніторинг встановлюється по найближчим магазинами а не за районами.
     Оберіть мережу та магазини для відслідковування у /select_chain"""
                              , reply_markup=reply_markup)
     # save unique users to pickle (open existing)
