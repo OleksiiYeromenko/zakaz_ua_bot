@@ -44,7 +44,12 @@ CHAIN_USERS_PICKLE_DICT = {'Megamarket':MM_USERS_PICKLE,
                            'Furshet':FURSHET_USERS_PICKLE}
 
 CHAIN_STORES_DICT = {'Megamarket':{'48267601':"МегаМаркет на Суркова 3",
-                                   '48267602':"МегаМаркет 'Космополіт' на В.Гетьмана 6"},
+                                   '48267602':"МегаМаркет 'Космополіт' на В.Гетьмана 6",
+                                   'Vyshhorod':"Магамаркет - Вишгород", 
+                                   'Vyshneve':"МегаМаркет - Вишневе", 
+                                   'Irpin':"МегаМаркет - Ірпінь", 
+                                   'Brovary':"МегаМаркет - Бровари", 
+                                   'Boryspil':"МегаМаркет - Бориспіль"},
                      'Metro':{'48215610':"METRO на Григоренка 43",
                               '48215611':"METRO Теремки на Кільцева 1В",
                               '48215633':"METRO Троещина на С.Лифаря 2А",
@@ -54,16 +59,33 @@ CHAIN_STORES_DICT = {'Megamarket':{'48267601':"МегаМаркет на Сур�
                               '48215621':"METRO Вінниця",
                               '48215632':"METRO Харків",
                               '48215637':"METRO Львів",
-                              '48215639':"METRO Житомир"},
+                              '48215639':"METRO Житомир",
+                            'Vyshhorod':"METRO - Вишгород", 
+                            'Vyshneve':"METRO - Вишневе", 
+                            'Irpin':"METRO - Ірпінь", 
+                            'Brovary':"METRO - Бровари", 
+                            'Boryspil':"METRO - Бориспіль"},
                      'Novus':{'482010105':"NOVUS SkyMall на пр.Ватутіна 2Т",
                               '48201029':"NOVUS на Кільцева 12",
-                              '48201070':"NOVUS на Здолбунівська 7"},
+                              '48201070':"NOVUS на Здолбунівська 7",
+                            'Vyshhorod':"NOVUS - Вишгород", 
+                            'Vyshneve':"NOVUS - Вишневе", 
+                            'Irpin':"NOVUS - Ірпінь", 
+                            'Brovary':"NOVUS - Бровари", 
+                            'Boryspil':"NOVUS - Бориспіль"},
                      'Ashan':{'48246403':"Ашан на Кільцева 4",
                               '48246401':"Ашан Петрівка на пр. С.Бандери 15А",
+                              '48246414':"Ашан Rive Gauche на Здолбунівська, 17",
                               '48246409':"Ашан Львів",
                               '48246414':"Ашан Рівне",
                               '48246416':"Ашан Одеса",
-                              '48246429':"Ашан Дніпро"},
+                              '48246429':"Ашан Дніпро",
+                            'Vyshhorod':"Ашан - Вишгород", 
+                            'Vyshneve':"Ашан - Вишневе", 
+                            'Irpin':"Ашан - Ірпінь", 
+                            'Brovary':"Ашан - Бровари", 
+                            'Boryspil':"Ашан - Бориспіль", 
+                            'Obukhiv':"Ашан - Обухів"},
                      'Furshet':{'48215514':"Фуршет Нивки",
                                 '48215518':"Фуршет Інженерна",
                                 '48215525':"Фуршет Райдужна",
@@ -74,6 +96,47 @@ CHAIN_LINK_DICT = {'Megamarket':"https://megamarket.zakaz.ua/uk/",
                    'Novus':"https://novus.zakaz.ua/uk/",
                    'Ashan':"https://beta.auchan.zakaz.ua/uk/",
                    'Furshet':"https://furshet.zakaz.ua/uk/"}
+
+
+#Support different delivery schedule from the same stores but for suburb
+SUBURB_STORES = {
+    'Megamarket':{
+        'Vyshhorod': '48267602', 
+         'Vyshneve':'48267602', 
+         'Irpin':'48267602', 
+         'Brovary':'48267601', 
+         'Boryspil':'48267601', 
+         'Obukhiv':''},
+    'Metro':{
+        'Vyshhorod': '48215633', 
+         'Vyshneve':'48215611', 
+         'Irpin':'48215633', 
+         'Brovary':'48215610', 
+         'Boryspil':'48215610', 
+         'Obukhiv':''},
+    'Novus':{
+        'Vyshhorod': '482010105', 
+         'Vyshneve':'48201029', 
+         'Irpin':'482010105', 
+         'Brovary':'48201070', 
+         'Boryspil':'48201070', 
+         'Obukhiv':''},
+    'Ashan':{
+        'Vyshhorod': '48246401', 
+         'Vyshneve':'48246403', 
+         'Irpin':'48246401', 
+         'Brovary':'48246414', 
+         'Boryspil':'48246414', 
+         'Obukhiv':'48246403'}}
+    
+SUBURB_COORDINATES = {
+    'Vyshhorod': '50.582268,30.4908301', 
+     'Vyshneve':'50.387402, 30.375242', 
+     'Irpin':'50.5215594,30.2447725', 
+     'Brovary':'50.50481130000001,30.7848282', 
+     'Boryspil':'50.3501905,30.9564207', 
+     'Obukhiv':'50.1304974,30.6550965'}
+
 
 # Enable logging
 logger = logging.getLogger(__name__) 
@@ -111,31 +174,35 @@ class Monitoring(Thread):
                     self.init_status[store_id] = False   
                 if len(store_users_dict)>0:
                     logger.info('Checking {}, {}, {}, monitoring users: {}'.format(chain_id,store_id,store_description,len(store_users_dict)))
-                    del_plan = get_delivery_plan(chain_id, store_id)
+                    #check if it's suburb - use another function
+                    if store_id[0].isdigit():
+                        del_plan = get_delivery_plan(chain_id, store_id)
+                    else:
+                        del_plan = get_delivery_plan_suburb(chain_id, store_id)
                     status = check_status_stores(del_plan)
                     if status[0]:
                         logger.info('Free slot in {}, {}'.format(chain_id,store_id))               
                         if self.init_status[store_id] != status[2]:
                             for usr in store_users_dict.keys():
                                 try:
-                                    self.updater.bot.send_message(chat_id=usr, text="😎 З'явився вільний слот в графіку доставки {}. Найближчий {}, {} \n{} \nЯ повідомлю про зміни.".format(store_description,status[1],status[2],store_link), disable_web_page_preview=True)
+                                    self.updater.bot.send_message(chat_id=usr, text="😎 Є вільний слот в графіку доставки {}. Найближчий {}, {} \n{} \nЯ повідомлю про зміни.".format(store_description,status[1],status[2],store_link), disable_web_page_preview=True)
                                 except Unauthorized:
                                     logger.info("User {}, {} blocked bot, removing from subscription list".format(usr, store_users_dict[usr])) 
-#                                     # delete users from subscription list if he blocked bot
-#                                     try:
-#                                         with open(CHAIN_USERS_PICKLE_DICT[chain_id], 'rb') as f:
-#                                                 stores = pickle.load(f)
-#                                     except:
-#                                         stores = {}
-#                                     try:
-#                                         registered_users = stores[store_id]
-#                                         registered_users.pop(usr, None)
-#                                         stores.update({store_id:registered_users})
-#                                     except:
-#                                         stores.update({store_id:{}})
-#                                     with open(CHAIN_USERS_PICKLE_DICT[chain_id], 'wb') as f:
-#                                         pickle.dump(stores, f)
-#                                     logger.info("{} {} user dict: {}".format(chain_id, store_id, stores[store_id])) 
+                                    # delete users from subscription list if he blocked bot
+                                    try:
+                                        with open(CHAIN_USERS_PICKLE_DICT[chain_id], 'rb') as f:
+                                                stores = pickle.load(f)
+                                    except:
+                                        stores = {}
+                                    try:
+                                        registered_users = stores[store_id]
+                                        registered_users.pop(usr, None)
+                                        stores.update({store_id:registered_users})
+                                    except:
+                                        stores.update({store_id:{}})
+                                    with open(CHAIN_USERS_PICKLE_DICT[chain_id], 'wb') as f:
+                                        pickle.dump(stores, f)
+                                    logger.info("{} {} user dict: {}".format(chain_id, store_id, stores[store_id])) 
                                 except TimedOut:
                                     logger.info("Message sending timed out..")                         
                     elif self.init_status[store_id] != False:
@@ -225,9 +292,20 @@ def select_store(update, context):
         inline_kb = [[InlineKeyboardButton(checkIcon+" МегаМаркет Суркова 3", callback_data='monitor_store Megamarket 48267601'), 
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Megamarket 48267601')],
                      [InlineKeyboardButton(checkIcon+" МегаМаркет Космополіт", callback_data='monitor_store Megamarket 48267602'),
-                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Megamarket 48267602')]]
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Megamarket 48267602')],
+                     [InlineKeyboardButton(checkIcon+" МегаМаркет Вишгород", callback_data='monitor_store Megamarket Vyshhorod'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Megamarket Vyshhorod')],
+                     [InlineKeyboardButton(checkIcon+" МегаМаркет Вишневе", callback_data='monitor_store Megamarket Vyshneve'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Megamarket Vyshneve')],
+                     [InlineKeyboardButton(checkIcon+" МегаМаркет Ірпінь", callback_data='monitor_store Megamarket Irpin'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Megamarket Irpin')],
+                     [InlineKeyboardButton(checkIcon+" МегаМаркет Бровари", callback_data='monitor_store Megamarket Brovary'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Megamarket Brovary')],
+                     [InlineKeyboardButton(checkIcon+" МегаМаркет Бориспіль", callback_data='monitor_store Megamarket Boryspil'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Megamarket Boryspil')]
+                    ]
         reply_markup = InlineKeyboardMarkup(inline_kb)
-        #context.bot.send_message(chat_id=query.message.chat_id, text='Встановіть моніторинг вільних слотів доставки по найближчим магазинам, що найвирогідніше обслуговують ваш район:', reply_markup=reply_markup)   
+        #context.bot.send_message(chat_id=query.message.chat_id, text='Встановіть моніторинг вільних слотів доставки по найближчим магазинам, що найвирогідніше обслуговують ваш район:', reply_markup=reply_markup) 
         #update.message.reply_text('Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup)   
     
     elif code=='Metro':    
@@ -237,6 +315,16 @@ def select_store(update, context):
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro 48215611')],
                      [InlineKeyboardButton(checkIcon+" METRO Троещина", callback_data='monitor_store Metro 48215633'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro 48215633')],
+                     [InlineKeyboardButton(checkIcon+" METRO Вишгород", callback_data='monitor_store Metro Vyshhorod'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro Vyshhorod')],
+                     [InlineKeyboardButton(checkIcon+" METRO Вишневе", callback_data='monitor_store Metro Vyshneve'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro Vyshneve')],
+                     [InlineKeyboardButton(checkIcon+" METRO Ірпінь", callback_data='monitor_store Metro Irpin'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro Irpin')],
+                     [InlineKeyboardButton(checkIcon+" METRO Бровари", callback_data='monitor_store Metro Brovary'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro Brovary')],
+                     [InlineKeyboardButton(checkIcon+" METRO Бориспіль", callback_data='monitor_store Metro Boryspil'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro Boryspil')],
                      [InlineKeyboardButton(checkIcon+" METRO Одеса", callback_data='monitor_store Metro 48215612'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro 48215612')],
                      [InlineKeyboardButton(checkIcon+" METRO Дніпро", callback_data='monitor_store Metro 48215614'),
@@ -253,14 +341,24 @@ def select_store(update, context):
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro 48215639')]]
         reply_markup = InlineKeyboardMarkup(inline_kb)
         #context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
-
+     
     elif code=='Novus':    
         inline_kb = [[InlineKeyboardButton(checkIcon+" NOVUS SkyMall", callback_data='monitor_store Novus 482010105'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus 482010105')],
                      [InlineKeyboardButton(checkIcon+" NOVUS на Кільцева 12", callback_data='monitor_store Novus 48201029'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus 48201029')],
                      [InlineKeyboardButton(checkIcon+" NOVUS Здолбунівська 7Г", callback_data='monitor_store Novus 48201070'),
-                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus 48201070')]]
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus 48201070')],
+                     [InlineKeyboardButton(checkIcon+" NOVUS Вишгород", callback_data='monitor_store Novus Vyshhorod'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus Vyshhorod')],
+                     [InlineKeyboardButton(checkIcon+" NOVUS Вишневе", callback_data='monitor_store Novus Vyshneve'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus Vyshneve')],
+                     [InlineKeyboardButton(checkIcon+" NOVUS Ірпінь", callback_data='monitor_store Novus Irpin'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus Irpin')],
+                     [InlineKeyboardButton(checkIcon+" NOVUS Бровари", callback_data='monitor_store Novus Brovary'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus Brovary')],
+                     [InlineKeyboardButton(checkIcon+" NOVUS Бориспіль", callback_data='monitor_store Novus Boryspil'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Novus Boryspil')]]
         reply_markup = InlineKeyboardMarkup(inline_kb)
         #context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
         
@@ -269,6 +367,20 @@ def select_store(update, context):
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan 48246403')],
                      [InlineKeyboardButton(checkIcon+" Ашан Петрівка", callback_data='monitor_store Ashan 48246401'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan 48246401')],
+                     [InlineKeyboardButton(checkIcon+" Ашан Rive Gauche", callback_data='monitor_store Ashan 48246414'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan 48246414')],
+                     [InlineKeyboardButton(checkIcon+" Ашан Вишгород", callback_data='monitor_store Ashan Vyshhorod'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan Vyshhorod')],
+                     [InlineKeyboardButton(checkIcon+" Ашан Вишневе", callback_data='monitor_store Ashan Vyshneve'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan Vyshneve')],
+                     [InlineKeyboardButton(checkIcon+" Ашан Ірпінь", callback_data='monitor_store Ashan Irpin'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan Irpin')],
+                     [InlineKeyboardButton(checkIcon+" Ашан Бровари", callback_data='monitor_store Ashan Brovary'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan Brovary')],
+                     [InlineKeyboardButton(checkIcon+" Ашан Бориспіль", callback_data='monitor_store Ashan Boryspil'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan Boryspil')],
+                     [InlineKeyboardButton(checkIcon+" Ашан Обухів", callback_data='monitor_store Ashan Obukhiv'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan Obukhiv')],
                      [InlineKeyboardButton(checkIcon+" Ашан Львів", callback_data='monitor_store Ashan 48246409'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan 48246409')],
                      [InlineKeyboardButton(checkIcon+" Ашан Рівне", callback_data='monitor_store Ashan 48246414'),
@@ -279,7 +391,7 @@ def select_store(update, context):
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan 48246429')]]
         reply_markup = InlineKeyboardMarkup(inline_kb)
         #context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
-                    
+
     elif code=='Furshet':
         inline_kb = [[InlineKeyboardButton(checkIcon+" Фуршет Нивки", callback_data='monitor_store Furshet 48215514'), 
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Furshet 48215514')],
@@ -385,16 +497,19 @@ def register_monitoring_user(update, context):
         logger.info("Furshet {} user dict: {}".format(store_code, stores[store_code])) 
     store_description = CHAIN_STORES_DICT[chain_code][store_code]
     context.bot.send_message(chat_id=update.effective_chat.id, text="🤓 Ви підписалися на моніторинг {}.".format(store_description))
-    del_plan = get_delivery_plan(chain_code, store_code)
+    #Check current status immediately:
+    if store_code[0].isdigit():
+        del_plan = get_delivery_plan(chain_code, store_code)
+    else:
+        del_plan = get_delivery_plan_suburb(chain_code, store_code)
     status = check_status_stores(del_plan)
     if status[0]:
         try:
-            context.bot.send_message(chat_id=update.effective_chat.id, text="😊 Пощастило! Зараз є вільний слот в графіку доставки {} - на {}, {} \n{} \nЯ повідомлю про зміни.".format(store_description,status[1],status[2],CHAIN_LINK_DICT[chain_code]), disable_web_page_preview=True)
+            context.bot.send_message(chat_id=update.effective_chat.id, text="😊 Пощастило! Зараз є вільний слот в графіку доставки - {}, {} \n{} \nЯ повідомлю про зміни.".format(status[1],status[2],CHAIN_LINK_DICT[chain_code]), disable_web_page_preview=True)
         except:
             pass
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Нажаль наразі немає вільних слотів в графіку доставки {}. \nЯ повідомлю коли з'явиться вільне вікно доставки.".format(store_description))
-
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Нажаль наразі немає вільних слотів в графіку доставки. \nЯ повідомлю коли з'явиться вільне вікно.")
                      
                      
 def unsubscribe_monitoring_user(update, context):
@@ -519,9 +634,13 @@ def status(update, context):
                      
 # Stop monitoring Thread        
 def stop_monitoring(update, context): #t=monitoring
-    global monitoring  
-    update.message.reply_text('OK, end monitoring...')
-    monitoring.running = False # stop the thread    
+    if update.effective_chat.id==109458488:
+        global monitoring  
+        update.message.reply_text('OK, end monitoring...')
+        monitoring.running = False # stop the thread    
+        logger.info("MONITORING STOPPED!!!") 
+    else:
+        logger.info("User {} {} {} tried to stop monitoring".format(update.effective_user["id"],update.effective_user["first_name"], update.effective_user["last_name"])) 
     
 def unknown(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Що таке "+update.message.text+"? 🤔")
@@ -541,6 +660,41 @@ def get_delivery_plan(chain_id, store_id):
     #rand_number = np.random.rand()
     #Get delivery schedule plan
     url = "https://stores-api.zakaz.ua/stores/"+store_id+"/delivery_schedule/plan/"  #&some_value={}".format(rand_number)
+    headers = {"authority":"stores-api.zakaz.ua"
+               ,"path":"/stores/"+store_id+"/delivery_schedule/plan/"
+               #,"origin":"https://megamarket.zakaz.ua"
+               #,"referer":"https://megamarket.zakaz.ua/uk/"
+               ,"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36"
+               #,"x-chain":"megamarket"
+              }
+    try:
+        response = requests.get(url, headers=headers) #, timeout=5
+    except requests.exceptions.ConnectionError:
+        logger.info(chain_id+" Connection refused")
+        return False    
+    # print the response status code
+    print(response.status_code)
+    if response.status_code==200:
+        try:
+            return response.json()
+        except json.decoder.JSONDecodeError:
+            logger.info("Response Not JSON: {}".format(response.text))
+            return False
+        except Exception as e:
+            logging.error(e)
+            return False
+    else:
+        logger.info("Error in response from {}: {}".format(chain_id, response.status_code)) 
+        return False
+
+def get_delivery_plan_suburb(chain_id, city):
+    #get coords:
+    coords = SUBURB_COORDINATES[city]
+    #get store_id:
+    store_id = SUBURB_STORES[chain_id][city]
+    
+    #Get delivery schedule plan
+    url = "https://stores-api.zakaz.ua/stores/"+store_id+"/delivery_schedule/plan/?coords="+coords
     headers = {"authority":"stores-api.zakaz.ua"
                ,"path":"/stores/"+store_id+"/delivery_schedule/plan/"
                #,"origin":"https://megamarket.zakaz.ua"
