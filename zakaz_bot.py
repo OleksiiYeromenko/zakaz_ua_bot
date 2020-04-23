@@ -181,7 +181,7 @@ class Monitoring(Thread):
                         if self.init_status[str(chain_id)+"_"+str(store_id)] != status[2]:
                             for usr in store_users_dict.keys():
                                 try:
-                                    self.updater.bot.send_message(chat_id=usr, text="😎 Є вільний слот в графіку доставки {}. Найближчий {}, {} \n{} \nЯ повідомлю про зміни.".format(store_description,status[1],status[2],store_link), disable_web_page_preview=True)
+                                    self.updater.bot.send_message(chat_id=usr, text="😎 Наразі є вільний слот в графіку доставки {}. Найближчий {}, {} \n{} \nЯ повідомлю про зміни.".format(store_description,status[1],status[2],store_link), disable_web_page_preview=True)
                                 except Unauthorized:
                                     logger.info("User {}, {} blocked bot, removing from subscription list".format(usr, store_users_dict[usr])) 
                                     # delete users from subscription list if he blocked bot
@@ -627,15 +627,70 @@ def status(update, context):
         context.bot.send_message(chat_id=usr, text='Ви не підписані на жоден магазин')             
                      
 # Stop monitoring Thread        
-def stop_monitoring(update, context): #t=monitoring
+def stop_monitoring(update, context): 
     if update.effective_chat.id==109458488:
         global monitoring  
         update.message.reply_text('OK, end monitoring...')
         monitoring.running = False # stop the thread    
         logger.info("MONITORING STOPPED!!!") 
     else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorised to do this")
         logger.info("User {} {} {} tried to stop monitoring".format(update.effective_user["id"],update.effective_user["first_name"], update.effective_user["last_name"])) 
-    
+
+        
+def broadcast(update, context):
+    if update.effective_chat.id==109458488:
+        message_text = " ".join(context.args)
+        print(message_text)
+        try:
+            with open(USERS_PICKLE, 'rb') as f:
+                    registered_users = pickle.load(f)
+            for usr in registered_users.keys():
+                try:
+                    context.bot.send_message(chat_id=usr, text="Broadcast message: \n" +message_text)
+                except:
+                    pass
+            time.sleep(0.1)
+        except:
+            logger.info("Tried to broadcast message, but failed to get unique users")  
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorised to do this")
+        logger.info("User {} {} {} tried to broadcast".format(update.effective_user["id"],update.effective_user["first_name"], update.effective_user["last_name"])) 
+        
+def userstats(update, context):
+    if update.effective_chat.id==109458488:
+        #Unique users:
+        try:
+            with open(USERS_PICKLE, 'rb') as f:
+                    registered_users = pickle.load(f)     
+        except:
+            logger.info("Failed to get unique users")     
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Наразі унікальних користувачів: {}".format(len(registered_users)))
+        #Active monitoring users:
+        store_users_status=""
+        count_active_users=0
+        active_users=[]
+        for chain_id, chain_pickle in CHAIN_USERS_PICKLE_DICT.items():
+            try:
+                with open(chain_pickle, 'rb') as f:
+                    chain_stores = pickle.load(f)
+            except:
+                chain_stores = {}
+
+            for store_id in chain_stores.keys():
+                store_users_dict = chain_stores[store_id]
+                store_description = CHAIN_STORES_DICT[chain_id][store_id]
+                if len(store_users_dict)>0:
+                    store_users_status = store_users_status + store_description + " - {}\n".format(len(store_users_dict))
+                    count_active_users = count_active_users + len(store_users_dict)
+                    active_users = active_users + list(store_users_dict.keys())
+        if len(store_users_status)>0:
+            context.bot.send_message(chat_id=update.effective_chat.id, text='Наразі активних користувачів що здійснюють моніторинг всього - {}, унікальних - {}.\nПо магазинам: \n{}'.format(count_active_users, len(set(active_users)), store_users_status))                
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorised to do this")
+        logger.info("User {} {} {} tried to get userstats".format(update.effective_user["id"],update.effective_user["first_name"], update.effective_user["last_name"])) 
+        
+
 def unknown(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Що таке "+update.message.text+"? 🤔")
     context.bot.send_message(chat_id=update.effective_chat.id, text="Я не розумію цієї команди.")
@@ -746,6 +801,8 @@ def main():
     updater.dispatcher.add_handler(CallbackQueryHandler(unsubscribe_monitoring_user, pattern=r'^unsubscribe_store ')) 
     updater.dispatcher.add_handler(CommandHandler('stop_monitoring', stop_monitoring)) 
     updater.dispatcher.add_handler(CommandHandler('donate', donate))
+    updater.dispatcher.add_handler(CommandHandler('broadcast', broadcast))
+    updater.dispatcher.add_handler(CommandHandler('userstats', userstats))
     updater.dispatcher.add_handler(MessageHandler(Filters.text, text))
     updater.dispatcher.add_handler(MessageHandler(Filters.command, unknown))
     #error logging handler
