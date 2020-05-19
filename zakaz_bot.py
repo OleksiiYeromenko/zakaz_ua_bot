@@ -60,6 +60,7 @@ CHAIN_STORES_DICT = {'Megamarket':{'48267601':"МегаМаркет на Сур�
                               '48215632':"METRO Харків",
                               '48215637':"METRO Львів",
                               '48215639':"METRO Житомир",
+                              '48215625':"METRO Полтава",
                             'Vyshhorod':"METRO - Вишгород", 
                             'Vyshneve':"METRO - Вишневе", 
                             'Irpin':"METRO - Ірпінь", 
@@ -76,6 +77,7 @@ CHAIN_STORES_DICT = {'Megamarket':{'48267601':"МегаМаркет на Сур�
                      'Ashan':{'48246403':"Ашан на Кільцева 4",
                               '48246401':"Ашан Петрівка на пр. С.Бандери 15А",
                               '48246414':"Ашан Rive Gauche на Здолбунівська, 17",
+                              '48246423':"Ашан на Академіка Глушкова 13Б",
                               '48246409':"Ашан Львів",
                               '48246416':"Ашан Одеса",
                               '48246429':"Ашан Дніпро",
@@ -123,7 +125,7 @@ SUBURB_STORES = {
          'Irpin':'48246401', 
          'Brovary':'48246414', 
          'Boryspil':'48246414', 
-         'Obukhiv':'48246403'}}
+         'Obukhiv':'48246423'}}
     
 SUBURB_COORDINATES = {
     'Vyshhorod': '50.582268,30.4908301', 
@@ -224,7 +226,7 @@ class Monitoring(Thread):
             # Make less frequent checks at night
             current_time = datetime.now().strftime("%H:%M")
             if (int(current_time[:2])>8)&(int(current_time[:2])<23):
-                time.sleep(300+np.random.randint(-5,5))
+                time.sleep(600+np.random.randint(-5,5))
             else:
                 time.sleep(1800+np.random.randint(-5,5))
 
@@ -334,7 +336,9 @@ def select_store(update, context):
                      [InlineKeyboardButton(checkIcon+" METRO Львів", callback_data='monitor_store Metro 48215637'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro 48215637')],     
                      [InlineKeyboardButton(checkIcon+" METRO Житомир", callback_data='monitor_store Metro 48215639'),
-                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro 48215639')]]
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro 48215639')],     
+                     [InlineKeyboardButton(checkIcon+" METRO Полтава", callback_data='monitor_store Metro 48215625'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Metro 48215625')]]
         reply_markup = InlineKeyboardMarkup(inline_kb)
         #context.bot.send_message(chat_id=query.message.chat_id, text='Оберіть на який магазин що здійснює доставку підписатися:', reply_markup=reply_markup) 
      
@@ -365,6 +369,8 @@ def select_store(update, context):
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan 48246401')],
                      [InlineKeyboardButton(checkIcon+" Ашан Rive Gauche", callback_data='monitor_store Ashan 48246414'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan 48246414')],
+                     [InlineKeyboardButton(checkIcon+" Ашан на Акад.Глушкова 13Б", callback_data='monitor_store Ashan 48246423'),
+                      InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan 48246423')],
                      [InlineKeyboardButton(checkIcon+" Ашан Вишгород", callback_data='monitor_store Ashan Vyshhorod'),
                       InlineKeyboardButton(crossIcon+" Відписатися", callback_data='unsubscribe_store Ashan Vyshhorod')],
                      [InlineKeyboardButton(checkIcon+" Ашан Вишневе", callback_data='monitor_store Ashan Vyshneve'),
@@ -685,7 +691,7 @@ def userstats(update, context):
                     count_active_users = count_active_users + len(store_users_dict)
                     active_users = active_users + list(store_users_dict.keys())
         if len(store_users_status)>0:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='Наразі активних користувачів що здійснюють моніторинг всього - {}, унікальних - {}.\nПо магазинам: \n{}'.format(count_active_users, len(set(active_users)), store_users_status))                
+            context.bot.send_message(chat_id=update.effective_chat.id, text='Користувачів що здійснюють моніторинг в цей час всього - {}, унікальних - {}.\nПо магазинам: \n{}'.format(count_active_users, len(set(active_users)), store_users_status))                
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="You are not authorised to do this")
         logger.info("User {} {} {} tried to get userstats".format(update.effective_user["id"],update.effective_user["first_name"], update.effective_user["last_name"])) 
